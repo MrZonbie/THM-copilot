@@ -12,19 +12,6 @@ const port = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Initialize Providers based on environment configuration
-const provider = process.env.AI_PROVIDER || 'openai'; // 'openai' or 'gemini'
-let openai;
-let genAI;
-
-if (provider === 'openai') {
-  openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || 'dummy_key_for_build',
-  });
-} else if (provider === 'gemini') {
-  genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy_key_for_build');
-}
-
 app.post('/api/chat', async (req, res) => {
   try {
     const { messages } = req.body;
@@ -33,12 +20,18 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Messages array is required.' });
     }
 
+    const provider = process.env.AI_PROVIDER || 'openai';
+
     if (provider === 'openai') {
       if (!process.env.OPENAI_API_KEY) {
         return res.status(500).json({
           error: 'OpenAI API key not configured. Please configure it in the .env file.'
         });
       }
+
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
 
       const response = await openai.chat.completions.create({
         model: process.env.MODEL_NAME || 'gpt-4o',
@@ -56,14 +49,16 @@ app.post('/api/chat', async (req, res) => {
         });
       }
 
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
       // Convert messages to Gemini format
       // Gemini expects a systemInstruction separately, and a specific history format
-      const systemMessage = messages.find(m => m.role === 'system');
+      const systemInstructions = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
       const userHistory = messages.filter(m => m.role !== 'system');
 
       const model = genAI.getGenerativeModel({
         model: process.env.MODEL_NAME || 'gemini-1.5-pro',
-        systemInstruction: systemMessage ? systemMessage.content : undefined,
+        systemInstruction: systemInstructions || undefined,
       });
 
       const formattedHistory = userHistory.map(msg => ({
@@ -97,5 +92,5 @@ app.post('/api/chat', async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server listening on port ${port} using provider: ${provider}`);
+  console.log(`Server listening on port ${port}`);
 });
