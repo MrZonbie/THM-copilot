@@ -56,8 +56,9 @@ app.post('/api/chat', async (req, res) => {
       const systemInstructions = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
       const userHistory = messages.filter(m => m.role !== 'system');
 
+      const modelName = process.env.MODEL_NAME || 'gemini-1.5-flash';
       const model = genAI.getGenerativeModel({
-        model: process.env.MODEL_NAME || 'gemini-1.5-pro',
+        model: modelName,
         systemInstruction: systemInstructions || undefined,
       });
 
@@ -73,10 +74,28 @@ app.post('/api/chat', async (req, res) => {
         history: formattedHistory,
       });
 
-      const result = await chat.sendMessage(latestMessage.parts[0].text);
-      const responseText = result.response.text();
+      const maxRetries = 3;
+      let attempt = 0;
+      let delay = 1000; // start with 1s delay
 
-      return res.json({ reply: responseText });
+      while (attempt < maxRetries) {
+        try {
+          const result = await chat.sendMessage(latestMessage.parts[0].text);
+          const responseText = result.response.text();
+          return res.json({ reply: responseText });
+        } catch (error) {
+          const isRetryable = error.status === 503 || error.status === 429 || error.message?.includes('503') || error.message?.includes('429');
+          attempt++;
+
+          if (!isRetryable || attempt >= maxRetries) {
+            throw error;
+          }
+
+          console.warn(`[Gemini Retry] Attempt ${attempt} failed with ${error.status || 'unknown status'}. Retrying model ${modelName} in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // exponential backoff
+        }
+      }
 
     } else {
       return res.status(500).json({ error: 'Invalid AI_PROVIDER configured.' });

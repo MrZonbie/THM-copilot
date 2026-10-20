@@ -38,7 +38,7 @@ THM Copilot is an intelligent assistant designed to act as an educational pentes
    AI_PROVIDER=openai
    OPENAI_API_KEY=your_openai_api_key_here
    GEMINI_API_KEY=your_gemini_api_key_here
-   # MODEL_NAME=gpt-4o
+   # MODEL_NAME=gemini-1.5-flash
    PORT=3001
    \`\`\`
    *Note: Using these APIs may incur separate costs billed by the respective providers. Please monitor your API usage.*

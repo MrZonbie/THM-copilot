@@ -52,5 +52,5 @@ describe('POST /api/chat', () => {
     expect(res.status).toBe(500);
     expect(res.body.error).toBe('An error occurred while processing your request with the AI provider.');
     expect(res.body.details).toContain('API key not valid'); // Ensure Google's error propagates
-  });
+  }, 15000);
 });
