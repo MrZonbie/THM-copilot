@@ -83,14 +83,24 @@ app.post('/api/chat', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Error calling AI API:', error);
+    // Safely extract error details without logging full response objects or headers that might contain keys
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStatus = error.status || error.code || 'UNKNOWN';
+
+    console.error(`[AI Provider Error] Status: ${errorStatus} | Message: ${errorMessage}`);
+
+    // Do not leak secrets in the response, but provide the provider's message to the user
     res.status(500).json({
-      error: 'An error occurred while processing your request.',
-      details: error instanceof Error ? error.message : String(error)
+      error: 'An error occurred while processing your request with the AI provider.',
+      details: errorMessage
     });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`Server listening on port ${port}`);
+  });
+}
+
+export default app;

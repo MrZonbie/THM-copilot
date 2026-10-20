@@ -58,7 +58,8 @@ Target IP: ${session.roomInfo.ip || 'Not provided'}`
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Server error: ${response.status}`);
+    const detailedMessage = errorData.details ? `: ${errorData.details}` : '';
+    throw new Error(`${errorData.error || 'Server error'}${detailedMessage}`);
   }
 
   const data = await response.json();
