@@ -40,6 +40,18 @@ describe('POST /api/chat', () => {
     expect(res.body).toEqual({ error: 'Gemini API key not configured. Please configure it in the .env file.' });
   });
 
+  it('should not return a missing key error if the gemini key is correctly parsed', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'mock_key_that_is_present';
+
+    const res = await request(app)
+      .post('/api/chat')
+      .send({ messages: [{ role: 'user', content: 'test' }] });
+
+    // Should NOT be the specific config missing error. It should try to execute and fail at Google API.
+    expect(res.body.error).not.toBe('Gemini API key not configured. Please configure it in the .env file.');
+  });
+
   it('should return 500 and format error details correctly when API call fails', async () => {
     process.env.AI_PROVIDER = 'gemini';
     process.env.GEMINI_API_KEY = 'invalid_key';

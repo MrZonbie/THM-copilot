@@ -3,8 +3,14 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { OpenAI } from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+// Ensure the .env file is loaded explicitly from the project root
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const envPath = path.resolve(__dirname, '../.env');
+dotenv.config({ path: envPath });
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -21,6 +27,12 @@ app.post('/api/chat', async (req, res) => {
     }
 
     const provider = process.env.AI_PROVIDER || 'openai';
+
+    // Secure diagnostic logs (do not log key content)
+    console.log(`[Diagnostic] Loaded .env from: ${envPath}`);
+    console.log(`[Diagnostic] AI_PROVIDER evaluated as: ${provider}`);
+    console.log(`[Diagnostic] GEMINI_API_KEY present: ${!!process.env.GEMINI_API_KEY}`);
+    console.log(`[Diagnostic] OPENAI_API_KEY present: ${!!process.env.OPENAI_API_KEY}`);
 
     if (provider === 'openai') {
       if (!process.env.OPENAI_API_KEY) {
