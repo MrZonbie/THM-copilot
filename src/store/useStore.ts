@@ -70,6 +70,13 @@ export const useStore = create<AppState>()(
         set((state) => ({
           sessions: state.sessions.map((session) => {
             if (session.id === sessionId) {
+              // Prevent exact duplicate descriptions (case-insensitive) to prevent spamming the panel
+              const isDuplicate = session.evidence.some(
+                e => e.description.toLowerCase().trim() === evidenceData.description.toLowerCase().trim()
+              );
+
+              if (isDuplicate) return session;
+
               const newEvidence: Evidence = {
                 ...evidenceData,
                 id: uuidv4(),

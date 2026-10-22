@@ -8,7 +8,7 @@ interface TerminalInputProps {
 }
 
 export const TerminalInput: React.FC<TerminalInputProps> = ({ sessionId }) => {
-  const { addMessage, getActiveSession } = useStore();
+  const { addMessage, addEvidence, getActiveSession } = useStore();
   const [command, setCommand] = useState('');
   const [output, setOutput] = useState('');
   const [note, setNote] = useState('');
@@ -38,10 +38,19 @@ export const TerminalInput: React.FC<TerminalInputProps> = ({ sessionId }) => {
       const session = getActiveSession();
       if (session) {
         // Fetch AI response
-        const reply = await generateChatResponse(session);
+        const { reply, newDiscoveries, newHypotheses } = await generateChatResponse(session);
         addMessage(sessionId, {
           role: 'assistant',
           content: reply,
+        });
+
+        // Add any newly parsed discoveries/hypotheses to the side panel via Zustand
+        newDiscoveries.forEach(description => {
+          addEvidence(sessionId, { description, status: 'confirmed' });
+        });
+
+        newHypotheses.forEach(description => {
+          addEvidence(sessionId, { description, status: 'hypothesis' });
         });
       }
     } catch (error) {

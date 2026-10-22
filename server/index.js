@@ -51,6 +51,7 @@ app.post('/api/chat', async (req, res) => {
         messages: messages,
         temperature: 0.7,
         max_tokens: 1500,
+        response_format: { type: "json_object" },
       });
 
       return res.json({ reply: response.choices[0].message.content });
@@ -74,6 +75,9 @@ app.post('/api/chat', async (req, res) => {
       const model = genAI.getGenerativeModel({
         model: modelName,
         systemInstruction: systemInstructions || undefined,
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       });
 
       const formattedHistory = userHistory.map(msg => ({

@@ -8,14 +8,26 @@ Guidelines:
 2. Explain what the evidence means clearly.
 3. Suggest the most promising NEXT STEP based on the evidence.
 4. Provide commands only when appropriate, explaining what they do and what the user should observe in the output.
-5. NEVER invent flags or assume a hypothesis is true without evidence.
+5. NEVER invent flags or assume a hypothesis is true without evidence. Do not record a finding as a "confirmed" discovery unless the exact terminal output provided strictly verifies it.
 6. Acknowledge when information is missing and guide the user on how to find it.
 7. Avoid repeating tests that have already been done unless there is a specific reason to do so.
-8. Structure your response logically. You may use headings like "Análise das evidências" (Evidence Analysis), "Próximo passo recomendado" (Recommended Next Step), etc., as appropriate for the user's language (default to Portuguese if requested, else match user's language).
+8. Structure your response logically in Markdown. You may use headings like "Análise das evidências" (Evidence Analysis), "Próximo passo recomendado" (Recommended Next Step), etc., as appropriate for the user's language (default to Portuguese if requested, else match user's language).
 
-Respond professionally, acting as a supportive mentor. Use Markdown.`;
+CRITICAL REQUIREMENT:
+You MUST return your response as a valid JSON object. Do not wrap it in markdown code blocks. The JSON object must strictly match the following schema:
+{
+  "reply": "The markdown-formatted text response representing your mentorship and analysis.",
+  "new_discoveries": ["Array of string descriptions of new CONFIRMED facts (e.g. 'Port 22 is open'). Only include NEW confirmed facts that haven't been tracked yet."],
+  "new_hypotheses": ["Array of string descriptions of new UNCONFIRMED hypotheses (e.g. 'FTP might allow anonymous login'). Only include NEW hypotheses."]
+}`;
 
-export const generateChatResponse = async (session: Session): Promise<string> => {
+export interface ParsedChatResponse {
+  reply: string;
+  newDiscoveries: string[];
+  newHypotheses: string[];
+}
+
+export const generateChatResponse = async (session: Session): Promise<ParsedChatResponse> => {
   // Construct the payload for the OpenAI API
   const messagesPayload = [
     { role: 'system', content: SYSTEM_PROMPT },
@@ -25,7 +37,13 @@ export const generateChatResponse = async (session: Session): Promise<string> =>
 Room: ${session.roomInfo.name}
 Description: ${session.roomInfo.description}
 Objective: ${session.roomInfo.objective}
-Target IP: ${session.roomInfo.ip || 'Not provided'}`
+Target IP: ${session.roomInfo.ip || 'Not provided'}
+
+PREVIOUSLY TRACKED DISCOVERIES (Do not output these again):
+${session.evidence.filter(e => e.status === 'confirmed').map(e => '- ' + e.description).join('\n') || 'None'}
+
+PREVIOUSLY TRACKED HYPOTHESES:
+${session.evidence.filter(e => e.status === 'hypothesis').map(e => '- ' + e.description).join('\n') || 'None'}`
     }
   ];
 
@@ -63,5 +81,27 @@ Target IP: ${session.roomInfo.ip || 'Not provided'}`
   }
 
   const data = await response.json();
-  return data.reply;
+  const rawReply = data.reply;
+
+  try {
+    // Attempt to parse the JSON response. Handles markdown ```json formatting if the AI includes it.
+    let jsonString = rawReply;
+    if (jsonString.startsWith('```json')) {
+      jsonString = jsonString.replace(/^```json\n/, '').replace(/\n```$/, '');
+    }
+    const parsed = JSON.parse(jsonString);
+
+    return {
+      reply: parsed.reply || 'No response provided.',
+      newDiscoveries: Array.isArray(parsed.new_discoveries) ? parsed.new_discoveries : [],
+      newHypotheses: Array.isArray(parsed.new_hypotheses) ? parsed.new_hypotheses : []
+    };
+  } catch (error) {
+    console.warn('Failed to parse AI response as JSON. Falling back to plain text treatment.', error);
+    return {
+      reply: rawReply,
+      newDiscoveries: [],
+      newHypotheses: []
+    };
+  }
 };
