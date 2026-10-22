@@ -26,7 +26,7 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Messages array is required.' });
     }
 
-    const provider = process.env.AI_PROVIDER || 'openai';
+    const provider = (process.env.AI_PROVIDER || 'openai').trim();
 
     // Secure diagnostic logs (do not log key content)
     console.log(`[Diagnostic] Loaded .env from: ${envPath}`);
@@ -35,18 +35,19 @@ app.post('/api/chat', async (req, res) => {
     console.log(`[Diagnostic] OPENAI_API_KEY present: ${!!process.env.OPENAI_API_KEY}`);
 
     if (provider === 'openai') {
-      if (!process.env.OPENAI_API_KEY) {
+      const openAiKey = process.env.OPENAI_API_KEY?.trim();
+      if (!openAiKey) {
         return res.status(500).json({
           error: 'OpenAI API key not configured. Please configure it in the .env file.'
         });
       }
 
       const openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
+        apiKey: openAiKey,
       });
 
       const response = await openai.chat.completions.create({
-        model: process.env.MODEL_NAME || 'gpt-4o',
+        model: (process.env.MODEL_NAME || 'gpt-4o').trim(),
         messages: messages,
         temperature: 0.7,
         max_tokens: 1500,
@@ -55,20 +56,21 @@ app.post('/api/chat', async (req, res) => {
       return res.json({ reply: response.choices[0].message.content });
 
     } else if (provider === 'gemini') {
-      if (!process.env.GEMINI_API_KEY) {
+      const geminiKey = process.env.GEMINI_API_KEY?.trim();
+      if (!geminiKey) {
         return res.status(500).json({
           error: 'Gemini API key not configured. Please configure it in the .env file.'
         });
       }
 
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const genAI = new GoogleGenerativeAI(geminiKey);
 
       // Convert messages to Gemini format
       // Gemini expects a systemInstruction separately, and a specific history format
       const systemInstructions = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
       const userHistory = messages.filter(m => m.role !== 'system');
 
-      const modelName = process.env.MODEL_NAME || 'gemini-1.5-flash';
+      const modelName = process.env.MODEL_NAME?.trim() || 'gemini-1.5-flash';
       const model = genAI.getGenerativeModel({
         model: modelName,
         systemInstruction: systemInstructions || undefined,
